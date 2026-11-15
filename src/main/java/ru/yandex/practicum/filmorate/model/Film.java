@@ -30,4 +30,8 @@ public class Film {
     private int duration;
 
     private Set<Integer> likes = new HashSet<>();
+
+    private Set<Integer> genres = new HashSet<>();
+
+    private Mpa mpa;
 }
