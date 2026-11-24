@@ -1,24 +1,31 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
+
+    public FilmService(
+            @Qualifier("filmDbStorage") FilmStorage filmStorage,
+            @Qualifier("userDbStorage") UserStorage userStorage
+    ) {
+        this.filmStorage = filmStorage;
+        this.userStorage = userStorage;
+    }
 
     public Film addFilm(Film film) {
         return filmStorage.addFilm(film);
@@ -42,22 +49,20 @@ public class FilmService {
                 .orElseThrow(() -> new NotFoundException("Фильм с id=" + id + " не найден"));
     }
 
+    @Transactional
     public void addLike(int filmId, int userId) {
-        Film film = getFilmById(filmId);
+        getFilmById(filmId);
         userStorage.getUserById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-
-        film.getLikes().add(userId);
-        filmStorage.updateFilm(film);
+        filmStorage.addLike(filmId, userId);
     }
 
+    @Transactional
     public void removeLike(int filmId, int userId) {
-        Film film = getFilmById(filmId);
+        getFilmById(filmId);
         userStorage.getUserById(userId)
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + userId + " не найден"));
-
-        film.getLikes().remove(userId);
-        filmStorage.updateFilm(film);
+        filmStorage.removeLike(filmId, userId);
     }
 
     public List<Film> getPopularFilms(int count) {
@@ -65,9 +70,6 @@ public class FilmService {
             throw new ValidationException("Параметр count должен быть положительным числом");
         }
 
-        return filmStorage.getAllFilms().stream()
-                .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
-                .limit(count)
-                .toList();
+        return filmStorage.getPopularFilms(count);
     }
 }

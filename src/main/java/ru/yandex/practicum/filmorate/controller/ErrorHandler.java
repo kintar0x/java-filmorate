@@ -1,6 +1,8 @@
 package ru.yandex.practicum.filmorate.controller;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -33,6 +35,18 @@ public class ErrorHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNotFoundException(NotFoundException ex) {
         return new ErrorResponse("Объект не найден", ex.getMessage());
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleHttpMessageNotReadable(HttpMessageNotReadableException ex) {
+        return new ErrorResponse("Некорректный запрос", "Проверьте JSON и обязательные поля тела запроса");
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleDuplicateKeyException(DuplicateKeyException ex) {
+        return new ErrorResponse("Ошибка валидации", "Пользователь с таким email или логином уже существует");
     }
 
     @ExceptionHandler(Exception.class)

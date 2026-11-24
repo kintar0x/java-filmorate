@@ -1,25 +1,25 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserService {
 
     private final UserStorage userStorage;
-    private final FilmStorage filmStorage;
+
+    public UserService(@Qualifier("userDbStorage") UserStorage userStorage) {
+        this.userStorage = userStorage;
+    }
 
     public User createUser(User user) {
         return userStorage.createUser(user);
@@ -38,64 +38,40 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
     }
 
+    @Transactional
     public void deleteUser(int id) {
-        User user = getUserById(id);
-
-        for (Integer friendId : user.getFriends()) {
-            userStorage.getUserById(friendId).ifPresent(friend -> {
-                friend.getFriends().remove(id);
-                userStorage.updateUser(friend);
-            });
-        }
-
-        for (Film film : filmStorage.getAllFilms()) {
-            if (film.getLikes().remove(id)) {
-                filmStorage.updateFilm(film);
-            }
-        }
+        getUserById(id);
 
         userStorage.deleteUser(id);
         log.info("Пользователь с id={} удалён", id);
     }
 
+    @Transactional
     public void addFriend(int userId, int friendId) {
-        User user = getUserById(userId);
-        User friend = getUserById(friendId);
-
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
-
-        userStorage.updateUser(user);
-        userStorage.updateUser(friend);
+        if (userId == friendId) {
+            throw new ValidationException("Нельзя добавить самого себя в друзья");
+        }
+        getUserById(userId);
+        getUserById(friendId);
+        userStorage.addFriend(userId, friendId);
     }
 
+    @Transactional
     public void removeFriend(int userId, int friendId) {
-        User user = getUserById(userId);
-        User friend = getUserById(friendId);
-
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
-
-        userStorage.updateUser(user);
-        userStorage.updateUser(friend);
+        getUserById(userId);
+        getUserById(friendId);
+        userStorage.removeFriend(userId, friendId);
     }
 
     public List<User> getCommonFriends(int userId, int otherId) {
-        User user = getUserById(userId);
-        User other = getUserById(otherId);
-
-        Set<Integer> commonIds = user.getFriends().stream()
-                .filter(other.getFriends()::contains)
-                .collect(Collectors.toSet());
-
-        return commonIds.stream()
-                .map(this::getUserById)
-                .collect(Collectors.toList());
+        getUserById(userId);
+        getUserById(otherId);
+        return userStorage.getCommonFriends(userId, otherId);
     }
 
     public List<User> getFriends(int userId) {
-        return getUserById(userId).getFriends().stream()
-                .map(this::getUserById)
-                .collect(Collectors.toList());
+        getUserById(userId);
+        return userStorage.getFriends(userId);
     }
+
 }
