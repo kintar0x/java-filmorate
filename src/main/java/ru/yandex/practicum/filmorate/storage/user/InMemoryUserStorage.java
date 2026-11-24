@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-@Component
+@Component("inMemoryUserStorage")
 public class InMemoryUserStorage implements UserStorage {
 
     private final Map<Integer, User> users = new HashMap<>();
@@ -40,6 +40,24 @@ public class InMemoryUserStorage implements UserStorage {
     @Override
     public Optional<User> getUserById(int id) {
         return Optional.ofNullable(users.get(id));
+    }
+
+    @Override
+    public void addFriend(int userId, int friendId) {
+        User user = getUserById(userId).orElseThrow(() ->
+                new NotFoundException("Пользователь с id=" + userId + " не найден"));
+        getUserById(friendId).orElseThrow(() ->
+                new NotFoundException("Пользователь с id=" + friendId + " не найден"));
+        user.getFriends().add(friendId);
+    }
+
+    @Override
+    public void removeFriend(int userId, int friendId) {
+        User user = getUserById(userId).orElseThrow(() ->
+                new NotFoundException("Пользователь с id=" + userId + " не найден"));
+        getUserById(friendId).orElseThrow(() ->
+                new NotFoundException("Пользователь с id=" + friendId + " не найден"));
+        user.getFriends().remove(friendId);
     }
 
     @Override

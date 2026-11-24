@@ -1,9 +1,11 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
@@ -15,11 +17,18 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserService {
 
     private final UserStorage userStorage;
     private final FilmStorage filmStorage;
+
+    public UserService(
+            @Qualifier("userDbStorage") UserStorage userStorage,
+            @Qualifier("filmDbStorage") FilmStorage filmStorage
+    ) {
+        this.userStorage = userStorage;
+        this.filmStorage = filmStorage;
+    }
 
     public User createUser(User user) {
         return userStorage.createUser(user);
@@ -38,14 +47,16 @@ public class UserService {
                 .orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден"));
     }
 
+    @Transactional
     public void deleteUser(int id) {
-        User user = getUserById(id);
+        getUserById(id);
 
-        for (Integer friendId : user.getFriends()) {
-            userStorage.getUserById(friendId).ifPresent(friend -> {
-                friend.getFriends().remove(id);
-                userStorage.updateUser(friend);
-            });
+        // In-memory хранилище не имеет внешних ключей, поэтому очищаем ссылки вручную.
+        // В БД связанные записи дополнительно удаляются в UserDbStorage.deleteUser.
+        for (User otherUser : userStorage.getAllUsers()) {
+            if (otherUser.getFriends().remove(id)) {
+                userStorage.updateUser(otherUser);
+            }
         }
 
         for (Film film : filmStorage.getAllFilms()) {
@@ -58,26 +69,21 @@ public class UserService {
         log.info("Пользователь с id={} удалён", id);
     }
 
+    @Transactional
     public void addFriend(int userId, int friendId) {
-        User user = getUserById(userId);
-        User friend = getUserById(friendId);
-
-        user.getFriends().add(friendId);
-        friend.getFriends().add(userId);
-
-        userStorage.updateUser(user);
-        userStorage.updateUser(friend);
+        if (userId == friendId) {
+            throw new ValidationException("Нельзя добавить самого себя в друзья");
+        }
+        getUserById(userId);
+        getUserById(friendId);
+        userStorage.addFriend(userId, friendId);
     }
 
+    @Transactional
     public void removeFriend(int userId, int friendId) {
-        User user = getUserById(userId);
-        User friend = getUserById(friendId);
-
-        user.getFriends().remove(friendId);
-        friend.getFriends().remove(userId);
-
-        userStorage.updateUser(user);
-        userStorage.updateUser(friend);
+        getUserById(userId);
+        getUserById(friendId);
+        userStorage.removeFriend(userId, friendId);
     }
 
     public List<User> getCommonFriends(int userId, int otherId) {

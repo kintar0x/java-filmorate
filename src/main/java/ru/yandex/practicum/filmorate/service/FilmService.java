@@ -1,8 +1,9 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -14,11 +15,18 @@ import java.util.List;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class FilmService {
 
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
+
+    public FilmService(
+            @Qualifier("filmDbStorage") FilmStorage filmStorage,
+            @Qualifier("userDbStorage") UserStorage userStorage
+    ) {
+        this.filmStorage = filmStorage;
+        this.userStorage = userStorage;
+    }
 
     public Film addFilm(Film film) {
         return filmStorage.addFilm(film);
@@ -42,6 +50,7 @@ public class FilmService {
                 .orElseThrow(() -> new NotFoundException("Фильм с id=" + id + " не найден"));
     }
 
+    @Transactional
     public void addLike(int filmId, int userId) {
         Film film = getFilmById(filmId);
         userStorage.getUserById(userId)
@@ -51,6 +60,7 @@ public class FilmService {
         filmStorage.updateFilm(film);
     }
 
+    @Transactional
     public void removeLike(int filmId, int userId) {
         Film film = getFilmById(filmId);
         userStorage.getUserById(userId)
