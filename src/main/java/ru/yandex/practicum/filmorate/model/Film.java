@@ -8,7 +8,8 @@ import lombok.Data;
 import ru.yandex.practicum.filmorate.validation.AfterReleaseDate;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 public class Film {
@@ -27,8 +28,6 @@ public class Film {
 
     @Positive(message = "Продолжительность должна быть положительным числом")
     private int duration;
-
-    private Set<Integer> likes = new HashSet<>();
 
     private List<Genre> genres = new ArrayList<>();
 

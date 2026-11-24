@@ -19,8 +19,6 @@ import static org.mockito.Mockito.when;
 class UserServiceTest {
     @Mock
     private UserStorage userStorage;
-    @Mock
-    private FilmStorage filmStorage;
     @InjectMocks
     private UserService userService;
 

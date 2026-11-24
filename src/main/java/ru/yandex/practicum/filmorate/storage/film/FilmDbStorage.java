@@ -51,7 +51,6 @@ public class FilmDbStorage implements FilmStorage {
         }
         film.setId(key.intValue());
         saveGenres(film);
-        saveLikes(film);
         loadMpa(film);
         return film;
     }
@@ -62,16 +61,15 @@ public class FilmDbStorage implements FilmStorage {
         validateMpa(film);
         validateGenres(film);
         int updated = jdbcTemplate.update("""
-                UPDATE films
-                SET name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
-                WHERE film_id = ?
-                """, film.getName(), film.getDescription(), Date.valueOf(film.getReleaseDate()),
+                        UPDATE films
+                        SET name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
+                        WHERE film_id = ?
+                        """, film.getName(), film.getDescription(), Date.valueOf(film.getReleaseDate()),
                 film.getDuration(), film.getMpa().getId(), film.getId());
         if (updated == 0) {
             throw new NotFoundException("Фильм с id=" + film.getId() + " не найден");
         }
         saveGenres(film);
-        saveLikes(film);
         loadMpa(film);
         return film;
     }
@@ -79,8 +77,6 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     @Transactional
     public void deleteFilm(int id) {
-        jdbcTemplate.update("DELETE FROM likes WHERE film_id = ?", id);
-        jdbcTemplate.update("DELETE FROM film_genres WHERE film_id = ?", id);
         jdbcTemplate.update("DELETE FROM films WHERE film_id = ?", id);
     }
 
@@ -105,7 +101,6 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private void loadRelatedData(Film film) {
-        loadLikes(film);
         loadGenres(film);
         loadMpa(film);
     }
@@ -136,8 +131,8 @@ public class FilmDbStorage implements FilmStorage {
 
     private void loadMpa(Film film) {
         Mpa mpa = jdbcTemplate.queryForObject("""
-                SELECT mpa_id, name FROM mpa WHERE mpa_id = ?
-                """, (rs, rowNum) -> new Mpa(rs.getInt("mpa_id"), rs.getString("name")),
+                        SELECT mpa_id, name FROM mpa WHERE mpa_id = ?
+                        """, (rs, rowNum) -> new Mpa(rs.getInt("mpa_id"), rs.getString("name")),
                 film.getMpa().getId());
         film.setMpa(mpa);
     }
@@ -168,18 +163,30 @@ public class FilmDbStorage implements FilmStorage {
         }
     }
 
-    private void loadLikes(Film film) {
-        List<Integer> likes = jdbcTemplate.query("""
-                SELECT user_id FROM likes WHERE film_id = ? ORDER BY user_id
-                """, (rs, rowNum) -> rs.getInt("user_id"), film.getId());
-        film.getLikes().clear();
-        film.getLikes().addAll(likes);
+
+    @Override
+    public void addLike(int filmId, int userId) {
+        jdbcTemplate.update("MERGE INTO likes (film_id, user_id) KEY (film_id, user_id) VALUES (?, ?)",
+                filmId, userId);
     }
 
-    private void saveLikes(Film film) {
-        jdbcTemplate.update("DELETE FROM likes WHERE film_id = ?", film.getId());
-        for (Integer userId : film.getLikes()) {
-            jdbcTemplate.update("INSERT INTO likes (film_id, user_id) VALUES (?, ?)", film.getId(), userId);
-        }
+    @Override
+    public void removeLike(int filmId, int userId) {
+        jdbcTemplate.update("DELETE FROM likes WHERE film_id = ? AND user_id = ?", filmId, userId);
     }
+
+    @Override
+    public List<Film> getPopularFilms(int count) {
+        List<Film> films = jdbcTemplate.query("""
+                SELECT f.*
+                FROM films f
+                LEFT JOIN likes l ON l.film_id = f.film_id
+                GROUP BY f.film_id
+                ORDER BY COUNT(l.user_id) DESC, f.film_id
+                LIMIT ?
+                """, filmRowMapper, count);
+        films.forEach(this::loadRelatedData);
+        return films;
+    }
+
 }

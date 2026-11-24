@@ -39,15 +39,13 @@ class FilmServiceTest {
 
         filmService.addLike(1, 1);
 
-        assertTrue(film.getLikes().contains(1));
+        verify(filmStorage).addLike(1, 1);
     }
 
     @Test
     void removeLike_shouldRemoveLike() {
         Film film = new Film();
         film.setId(1);
-        film.getLikes().add(1);
-
         User user = new User();
         user.setId(1);
 
@@ -56,25 +54,17 @@ class FilmServiceTest {
 
         filmService.removeLike(1, 1);
 
-        assertFalse(film.getLikes().contains(1));
+        verify(filmStorage).removeLike(1, 1);
     }
 
     @Test
-    void getPopularFilms_shouldSortByLikes() {
-        Film f1 = new Film();
-        f1.setId(1);
-        f1.getLikes().add(1); // 1 лайк
-
-        Film f2 = new Film();
-        f2.setId(2);
-        f2.getLikes().add(1); // 2 лайка
-        f2.getLikes().add(2);
-
-        when(filmStorage.getAllFilms()).thenReturn(List.of(f1, f2));
+    void getPopularFilms_shouldUseStorageQuery() {
+        List<Film> films = List.of(new Film(), new Film());
+        when(filmStorage.getPopularFilms(10)).thenReturn(films);
 
         List<Film> popular = filmService.getPopularFilms(10);
 
-        assertEquals(2, popular.get(0).getId()); // Фильм с 2 лайками первый
-        assertEquals(1, popular.get(1).getId());
+        assertEquals(films, popular);
+        verify(filmStorage).getPopularFilms(10);
     }
 }
