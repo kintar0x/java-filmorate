@@ -94,11 +94,13 @@ class UserDbStorageTest {
 
         assertThat(userStorage.getUserById(first.getId())
                 .orElseThrow()
-                .getFriends()).isEmpty();
+                .getFriends())
+                .containsExactly(second.getId());
 
         assertThat(userStorage.getUserById(second.getId())
                 .orElseThrow()
-                .getFriends()).isEmpty();
+                .getFriends())
+                .isEmpty();
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status_id FROM friendships WHERE user_id = ? AND friend_id = ?",
@@ -111,11 +113,13 @@ class UserDbStorageTest {
 
         assertThat(userStorage.getUserById(first.getId())
                 .orElseThrow()
-                .getFriends()).containsExactly(second.getId());
+                .getFriends())
+                .containsExactly(second.getId());
 
         assertThat(userStorage.getUserById(second.getId())
                 .orElseThrow()
-                .getFriends()).containsExactly(first.getId());
+                .getFriends())
+                .containsExactly(first.getId());
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status_id FROM friendships WHERE user_id = ? AND friend_id = ?",
@@ -135,11 +139,13 @@ class UserDbStorageTest {
 
         assertThat(userStorage.getUserById(first.getId())
                 .orElseThrow()
-                .getFriends()).isEmpty();
+                .getFriends())
+                .isEmpty();
 
         assertThat(userStorage.getUserById(second.getId())
                 .orElseThrow()
-                .getFriends()).isEmpty();
+                .getFriends())
+                .isEmpty();
     }
 
     @Test

@@ -77,7 +77,24 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     @Transactional
     public void deleteFilm(int id) {
-        jdbcTemplate.update("DELETE FROM films WHERE film_id = ?", id);
+        jdbcTemplate.update(
+                "DELETE FROM film_genres WHERE film_id = ?",
+                id
+        );
+
+        jdbcTemplate.update(
+                "DELETE FROM likes WHERE film_id = ?",
+                id
+        );
+
+        int deletedRows = jdbcTemplate.update(
+                "DELETE FROM films WHERE film_id = ?",
+                id
+        );
+
+        if (deletedRows == 0) {
+            throw new NotFoundException("Фильм с id " + id + " не найден");
+        }
     }
 
     @Override
@@ -87,7 +104,7 @@ public class FilmDbStorage implements FilmStorage {
         if (films.isEmpty()) {
             return Optional.empty();
         }
-        Film film = films.get(0);
+        Film film = films.getFirst();
         loadRelatedData(film);
         return Optional.of(film);
     }
@@ -106,8 +123,17 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private void validateMpa(Film film) {
-        if (film.getMpa() == null || jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM mpa WHERE mpa_id = ?", Integer.class, film.getMpa().getId()) == 0) {
+        if (film.getMpa() == null) {
+            throw new NotFoundException("Указанный рейтинг MPA не найден");
+        }
+
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM mpa WHERE mpa_id = ?",
+                Integer.class,
+                film.getMpa().getId()
+        );
+
+        if (count == null || count == 0) {
             throw new NotFoundException("Указанный рейтинг MPA не найден");
         }
     }
