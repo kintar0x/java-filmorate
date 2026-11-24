@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users
     email    VARCHAR(255) NOT NULL UNIQUE,
     login    VARCHAR(100) NOT NULL UNIQUE,
     name     VARCHAR(100),
-    birthday DATE         NOT NULL
+    birthday DATE
 );
 
 -- Возрастные рейтинги
